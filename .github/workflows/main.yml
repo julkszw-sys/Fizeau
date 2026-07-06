@@ -23,7 +23,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             devkitpro/devkita64:latest \
-            /bin/bash -lc "dkp-pacman -Sy --noconfirm switch-glm && git config --global --add safe.directory /workspace && make dist"
+            /bin/bash -lc "git config --global --add safe.directory /workspace && make dist"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
