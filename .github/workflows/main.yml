@@ -1,26 +1,32 @@
-name: Build
+name: Build Fizeau RGB Gains UI
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  push:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: devkitpro/devkita64:latest
 
     steps:
-    - name: Install 7z
-      run: sudo apt update && sudo apt install -y p7zip-full
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - uses: actions/checkout@v1
-      with:
-        submodules: recursive
+      - name: Apply RGB gains UI patch
+        run: python3 tools/apply_rgb_gains_ui_patch.py
 
-    - name: Build
-      run: |
-        make -C common -j$(nproc)
-        make dist -j$(nproc)
+      - name: Build inside devkitPro container
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            devkitpro/devkita64:latest \
+            /bin/bash -lc "dkp-pacman -Sy --noconfirm switch-glm rsync zip && make dist"
 
-    - uses: actions/upload-artifact@master
-      with:
-        name: Fizeau
-        path: out/Fizeau-*.zip
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fizeau-rgb-gains-ui
+          path: out/*
