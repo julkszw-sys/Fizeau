@@ -50,3 +50,4 @@ components = all
 ```
 
 Do not mix old Fizeau app/overlay/sysmodule with this patched build. Install the whole generated package together.
+trigger build
