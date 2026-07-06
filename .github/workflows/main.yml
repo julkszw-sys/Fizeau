@@ -15,7 +15,7 @@ jobs:
           submodules: recursive
 
       - name: Apply RGB gains UI patch
-        run: python3 tools/apply_rgb_gains_ui_patch.py
+        run: python3 tools/run_robust_rgb_patch.py
 
       - name: Build inside devkitPro container
         run: |
