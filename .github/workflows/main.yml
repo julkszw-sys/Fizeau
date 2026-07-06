@@ -23,10 +23,27 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             devkitpro/devkita64:latest \
-            /bin/bash -lc "git config --global --add safe.directory /workspace && make dist"
+            /bin/bash -lc "git config --global --add safe.directory /workspace && git config --global --add safe.directory /workspace/lib/nvjpg/oss-nvjpg && make all"
 
-      - name: Upload build artifact
+      - name: Create SD package
+        run: |
+          mkdir -p package/config/Fizeau
+          mkdir -p package/switch/Fizeau
+          mkdir -p package/switch/.overlays
+          mkdir -p package/atmosphere/contents/0100000000000F12/flags
+          mkdir -p package/atmosphere/exefs_patches/nvnflinger_cmu
+
+          cp misc/default.ini package/config/Fizeau/config.ini
+          cp application/out/Fizeau.nro package/switch/Fizeau/Fizeau.nro
+          cp overlay/out/Fizeau.ovl package/switch/.overlays/Fizeau.ovl
+          cp sysmodule/out/Fizeau.nsp package/atmosphere/contents/0100000000000F12/exefs.nsp
+          cp sysmodule/toolbox.json package/atmosphere/contents/0100000000000F12/toolbox.json
+          touch package/atmosphere/contents/0100000000000F12/flags/boot2.flag
+
+          cp misc/patches/*.ips package/atmosphere/exefs_patches/nvnflinger_cmu/ 2>/dev/null || true
+
+      - name: Upload SD package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Fizeau-rgb-gains-ui
-          path: out/*
+          name: Fizeau-rgb-gains-ui-SD-package
+          path: package/
