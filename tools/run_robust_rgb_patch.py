@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Robust wrapper for apply_rgb_gains_ui_patch.py.
+Robust wrapper for apply_rgb_gains_ui_patch.py, with color.cpp repair.
 
-The original patcher used exact anchors with newlines. Current Fizeau sources in this
-fork can be compacted/one-line, so exact anchors fail. This wrapper loads the original
-patcher, replaces its helper functions with whitespace-flexible versions, then executes it.
+Why this exists:
+- Fizeau source files in the current fork are heavily compacted into long lines.
+- The original patcher used exact multiline anchors.
+- A whitespace-flexible anchor can accidentally insert gains_matrix() inside whitepoint().
+- This wrapper applies the original patch, then moves gains_matrix() to file scope before whitepoint().
 """
 
 from pathlib import Path
@@ -20,17 +22,14 @@ end = code.index("# ---- Core ABI / settings")
 
 robust_helpers = """
 def _anchor_pattern(anchor):
-    # Treat any whitespace in the anchor as flexible whitespace in the source.
     parts = re.split(r'\\s+', anchor.strip())
     return r'\\s+'.join(re.escape(p) for p in parts)
 
 def _find_anchor(s, anchor, path):
-    # Fast exact path first.
     idx = s.find(anchor)
     if idx >= 0:
         return idx, idx + len(anchor)
 
-    # Fallback: whitespace-flexible regex.
     pat = _anchor_pattern(anchor)
     m = re.search(pat, s)
     if not m:
@@ -74,3 +73,34 @@ def replace_once(path, old, new, marker=None):
 
 patched = code[:start] + robust_helpers + code[end:]
 exec(compile(patched, str(PATCHER), "exec"))
+
+# ---- Repair color.cpp -----------------------------------------------------
+color_path = ROOT / "common/src/color.cpp"
+s = color_path.read_text(encoding="utf-8")
+
+gains_block = """ColorMatrix gains_matrix(ColorGains gains) {
+    gains.r = std::clamp(gains.r, MIN_GAIN, MAX_GAIN);
+    gains.g = std::clamp(gains.g, MIN_GAIN, MAX_GAIN);
+    gains.b = std::clamp(gains.b, MIN_GAIN, MAX_GAIN);
+
+    return {
+        gains.r, 0.0f,    0.0f,
+        0.0f,    gains.g, 0.0f,
+        0.0f,    0.0f,    gains.b,
+    };
+}
+
+"""
+
+# Remove every inserted copy of gains_matrix(), whether at file scope or inside whitepoint().
+s = s.replace(gains_block, "")
+
+# Insert exactly once before whitepoint(), at namespace/file scope.
+m = re.search(r"std::tuple\s*<\s*float\s*,\s*float\s*,\s*float\s*>\s+whitepoint\s*\(\s*Temperature\s+temperature\s*\)\s*\{", s)
+if not m:
+    raise SystemExit("Could not find whitepoint() in common/src/color.cpp for gains_matrix insertion")
+
+s = s[:m.start()] + gains_block + s[m.start():]
+color_path.write_text(s, encoding="utf-8")
+
+print("RGB gains + simple UI patch applied; color.cpp gains_matrix placement repaired.")
