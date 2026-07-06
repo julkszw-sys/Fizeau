@@ -23,7 +23,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             devkitpro/devkita64:latest \
-            /bin/bash -lc "dkp-pacman -Sy --noconfirm switch-glm rsync zip && make dist"
+             /bin/bash -lc "dkp-pacman -Sy --noconfirm switch-glm && make dist"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
